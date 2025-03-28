@@ -1,0 +1,30 @@
+pip install pyodbc azure-functions
+DB_servers, Db_database, BD_Username, DB_password
+
+import logging
+import azure.functions as func
+import pyodbc
+import os
+import json
+
+def main(req: func.HttpRequest) -> func.HttpResponse:
+    server = os.getenv('DB_SERVER')
+    database = os.getenv('DB_DATABASE')
+    username = os.getenv('DB_USERNAME')
+    password = os.getenv('DB_PASSWORD')
+    driver = '{ODBC Driver 17 for SQL Server}'
+
+    try:
+        conn = pyodbc.connect(
+            f'DRIVER={driver};SERVER={server};PORT=1433;DATABASE={database};UID={username};PWD={password}'
+        )
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Patients")
+        columns = [column[0] for column in cursor.description]
+        records = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        return func.HttpResponse(json.dumps(records), mimetype="application/json")
+    except pyodbc.Error as e:
+        logging.error(f"Database error: {e}")
+        return func.HttpResponse("Database connection failed", status_code=500)
+    finally:
+        conn.close()
